@@ -67,6 +67,12 @@ main{max-width:1400px;margin:0 auto;padding:18px 20px 60px}
 .chips::-webkit-scrollbar{display:none}
 .chip{flex:none;padding:8px 15px;border-radius:999px;border:1px solid #2a2a2a;background:#141414;color:#cfcfcf;font-weight:600;font-size:14px}
 .chip.on{background:#fff;color:#000;border-color:#fff}
+.teste{color:var(--mu);font-size:13.5px;margin:2px 0 4px;display:flex;align-items:center;gap:8px}
+.teste b{color:#fff}
+.teste .pt{width:8px;height:8px;border-radius:50%;background:#f5a524;animation:pisca 1s infinite}
+.card .pt{position:absolute;bottom:8px;right:8px;width:9px;height:9px;border-radius:50%;background:#555;box-shadow:0 0 0 2px rgba(0,0,0,.4)}
+.card.ok .pt{background:#22c55e}
+.card.off .pt{background:#ef4444}
 .chip small{opacity:.6;margin-left:4px}
 
 h3{font-size:20px;margin:18px 0 12px;display:flex;align-items:center;gap:10px}
@@ -129,7 +135,9 @@ footer a{text-decoration:underline}
 
  <div class="filtros">
   <select class="pais" id="pais" aria-label="País"></select>
+  <button class="chip" id="retestar">↻ Testar de novo</button>
  </div>
+ <p class="teste" id="teste"></p>
  <div class="chips" id="chips"></div>
 
  <div id="secFav" hidden><h3>⭐ Seus favoritos</h3><div class="linha" id="lFav"></div></div>
@@ -141,68 +149,128 @@ footer a{text-decoration:underline}
 </main>
 
 <footer>
-<p>Os canais desta página são transmissões abertas e gratuitas que as próprias emissoras disponibilizam na internet, reunidas pela lista pública e comunitária <a href="https://github.com/iptv-org/iptv">iptv-org</a>. O StreamHub não hospeda, não controla e não vende nenhum desses canais.</p>
-<p>Alguns canais podem ficar fora do ar ou funcionar só no país de origem. É dono de um canal e quer removê-lo? Fale conosco pelo <a href="https://wa.me/5571991404374">WhatsApp</a>.</p>
+<p>Os canais desta página são transmissões abertas e gratuitas que as próprias emissoras disponibilizam na internet, reunidas pelas listas públicas <a href="https://github.com/iptv-org/iptv">iptv-org</a> e <a href="https://github.com/Free-TV/IPTV">Free-TV</a>. O StreamHub não hospeda, não controla e não vende nenhum desses canais.</p>
+<p>O site testa cada canal no seu aparelho e mostra só os que estão funcionando. Alguns funcionam só no país de origem. É dono de um canal e quer removê-lo? Fale conosco pelo <a href="https://wa.me/5571991404374">WhatsApp</a>.</p>
 <p><a href="index.html">Início</a> · <a href="privacidade.html">Privacidade</a></p>
 </footer>
 
 <script async src="https://cdn.jsdelivr.net/npm/hls.js@1/dist/hls.min.js"></script>
 <script>
 (function () {
- var FONTE = new URLSearchParams(location.search).get('fonte') || 'https://iptv-org.github.io/iptv/';
- var PAISES = [['br','🇧🇷 Brasil'],['pt','🇵🇹 Portugal'],['ar','🇦🇷 Argentina'],['mx','🇲🇽 México'],['es','🇪🇸 Espanha'],['us','🇺🇸 Estados Unidos'],['it','🇮🇹 Itália'],['fr','🇫🇷 França'],['gb','🇬🇧 Reino Unido'],['de','🇩🇪 Alemanha'],['jp','🇯🇵 Japão'],['cat:news','📰 Notícias do mundo'],['cat:music','🎵 Música do mundo'],['cat:kids','🧸 Infantil do mundo'],['cat:sports','⚽ Esportes abertos'],['cat:movies','🎬 Filmes abertos']];
+ var qs = new URLSearchParams(location.search);
+ var FONTE = qs.get('fonte') || 'https://iptv-org.github.io/iptv/';
+ var FREETV = qs.get('freetv') || 'https://raw.githubusercontent.com/Free-TV/IPTV/master/playlist.m3u8';
+ /* endereço do Worker "ponte" no Cloudflare (opcional) */
+ var PONTE = (qs.get('ponte') || '__PONTE__').replace(/\/$/, ''); if (PONTE.indexOf('__') === 0) PONTE = '';
+ var PAISES = [['br','🇧🇷 Brasil','Brazil|Brasil'],['pt','🇵🇹 Portugal','Portugal'],['ar','🇦🇷 Argentina','Argentina'],['mx','🇲🇽 México','Mexico|México'],['es','🇪🇸 Espanha','Spain|España'],['us','🇺🇸 Estados Unidos','USA|United States'],['it','🇮🇹 Itália','Italy|Italia'],['fr','🇫🇷 França','France'],['gb','🇬🇧 Reino Unido','UK|United Kingdom'],['de','🇩🇪 Alemanha','Germany|Deutschland'],['jp','🇯🇵 Japão','Japan'],['cl','🇨🇱 Chile','Chile'],['pe','🇵🇪 Peru','Peru|Perú'],['cat:news','📰 Notícias do mundo'],['cat:music','🎵 Música do mundo'],['cat:kids','🧸 Infantil do mundo'],['cat:sports','⚽ Esportes abertos'],['cat:movies','🎬 Filmes abertos']];
  var CAT = { General: 'Variedades', News: 'Notícias', Religious: 'Religiosos', Music: 'Música', Kids: 'Infantil', Sports: 'Esportes', Education: 'Educativos', Entertainment: 'Entretenimento', Movies: 'Filmes', Series: 'Séries', Documentary: 'Documentários', Culture: 'Cultura', Legislative: 'Legislativos', Business: 'Economia', Lifestyle: 'Estilo de vida', Comedy: 'Comédia', Cooking: 'Culinária', Travel: 'Viagem', Outdoor: 'Natureza', Animation: 'Animação', Classic: 'Clássicos', Family: 'Família', Science: 'Ciência', Shop: 'Compras', Weather: 'Tempo', Auto: 'Carros', Relax: 'Relax', Undefined: 'Outros' };
- var PAGINA = 60;
+ var PAGINA = 60, SIMULT = 8, TEMPO_TESTE = 8000, VALIDADE = 30 * 60e3;
  var $ = function (id) { return document.getElementById(id) };
  var ls = { get: function (k, d) { try { var v = localStorage.getItem(k); return v ? JSON.parse(v) : d } catch (e) { return d } }, set: function (k, v) { try { localStorage.setItem(k, JSON.stringify(v)) } catch (e) {} } };
 
  var todos = [], lista = [], cat = 'Todos', q = '', mostra = PAGINA, atual = null, hls = null, timer = null;
- var falhou = {}, fav = ls.get('tv:fav', []), rec = ls.get('tv:rec', []);
- var pais = ls.get('tv:pais', 'br');
+ var fav = ls.get('tv:fav', []), rec = ls.get('tv:rec', []), pais = ls.get('tv:pais', 'br');
+ var vias = ls.get('tv:via', {}), est = ls.get('tv:est', {}), geracao = 0, fila = [], ativos = 0, testados = 0;
+ var seguro = location.protocol === 'https:';
 
- /* ---- lista M3U ---- */
- function lerM3U(txt) {
+ function precisaPonte(u) { return seguro && /^http:/i.test(u) }
+ function viaPonte(u) { return PONTE + '/p?u=' + encodeURIComponent(u) }
+ function tocavel(c) { return PONTE && (c.via === 'ponte' || precisaPonte(c.url)) ? viaPonte(c.url) : c.url }
+ function status(c) { var e = est[c.url]; return e && Date.now() - e.t < VALIDADE ? e.s : '' }
+
+ /* ---- listas M3U ---- */
+ function lerM3U(txt, fonte) {
   var out = [], linhas = txt.split(/\r?\n/), info = null;
   for (var i = 0; i < linhas.length; i++) {
    var l = linhas[i].trim();
    if (l.indexOf('#EXTINF') === 0) {
     var a = function (n) { var m = l.match(new RegExp(n + '="([^"]*)"')); return m ? m[1] : '' };
-    var nome = l.slice(l.lastIndexOf(',') + 1).trim();
-    info = { id: a('tvg-id'), logo: a('tvg-logo'), grupo: a('group-title') || 'Undefined', bruto: nome };
-   } else if (info && l && l[0] !== '#') {
-    info.url = l; out.push(info); info = null;
-   }
+    info = { id: a('tvg-id'), logo: a('tvg-logo'), grupo: a('group-title') || 'Undefined', bruto: l.slice(l.lastIndexOf(',') + 1).trim() };
+   } else if (info && l && l[0] !== '#') { info.url = l; out.push(info); info = null }
   }
   return out.map(function (c) {
-   var n = c.bruto, res = (n.match(/\((\d{3,4})p\)/) || [])[1], geo = /\[geo-blocked\]/i.test(n), nao24 = /\[not 24\/7\]/i.test(n);
-   n = n.replace(/\[[^\]]*\]/g, '').replace(/\(\d{3,4}p\)/g, '').replace(/\s+/g, ' ').trim();
-   var grupos = c.grupo.split(';').map(function (g) { return g.trim() }).filter(Boolean);
-   return { id: c.id || n, nome: n, logo: /^https:/.test(c.logo) ? c.logo : '', grupos: grupos.length ? grupos : ['Undefined'], url: c.url, res: res ? +res : 0, geo: geo, nao24: nao24 };
+   var n = c.bruto, res = (n.match(/\((\d{3,4})p\)/) || [])[1], geo = /\[geo-blocked\]|Ⓖ/i.test(n), nao24 = /\[not 24\/7\]/i.test(n), sd = /Ⓢ/.test(n);
+   n = n.replace(/\[[^\]]*\]/g, '').replace(/\(\d{3,4}p\)/g, '').replace(/[ⓈⒼⓎ]/g, '').replace(/\s+/g, ' ').trim();
+   var grupos = fonte === 'freetv' ? ['General'] : c.grupo.split(';').map(function (g) { return g.trim() }).filter(Boolean);
+   return { id: c.id || n, nome: n, logo: /^https:/.test(c.logo) ? c.logo : '', grupos: grupos.length ? grupos : ['Undefined'], url: c.url, res: res ? +res : (fonte === 'freetv' && !sd ? 720 : 0), geo: geo, nao24: nao24, pais: c.grupo };
   }).filter(function (c) {
-   /* site é https: link http não toca no navegador. E nada de adulto. */
-   return (/^https:/i.test(c.url) || location.protocol !== 'https:') && !c.grupos.some(function (g) { return /xxx|adult/i.test(g) });
+   if (c.grupos.some(function (g) { return /xxx|adult/i.test(g) })) return false;
+   if (/youtube\.com|youtu\.be/i.test(c.url)) return false;
+   return /^https:/i.test(c.url) || !!PONTE || !seguro;
   });
  }
-
  function arquivo(p) { return p.indexOf('cat:') === 0 ? 'categories/' + p.slice(4) + '.m3u' : 'countries/' + p + '.m3u' }
-
- function carregar() {
-  var chave = 'tv:m3u:' + pais, cache = ls.get(chave, null);
-  $('grade').className = 'carrega'; $('grade').innerHTML = '<div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div>';
-  if (cache && Date.now() - cache.t < 6 * 3600e3) return pronto(lerM3U(cache.txt));
-  fetch(FONTE + arquivo(pais)).then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.text() })
-   .then(function (txt) { ls.set(chave, { t: Date.now(), txt: txt }); pronto(lerM3U(txt)) })
-   .catch(function () {
-    if (cache) return pronto(lerM3U(cache.txt));
-    $('grade').className = ''; $('grade').innerHTML = '<p class="vazio">Não foi possível carregar os canais agora. Verifique a internet e <a href="" style="text-decoration:underline">recarregue a página</a>.</p>';
-   });
+ function baixar(url, chave) {
+  var c = ls.get(chave, null);
+  if (c && Date.now() - c.t < 6 * 3600e3) return Promise.resolve(c.txt);
+  return fetch(url).then(function (r) { if (!r.ok) throw 0; return r.text() })
+   .then(function (txt) { try { ls.set(chave, { t: Date.now(), txt: txt }) } catch (e) {} return txt })
+   .catch(function () { return c ? c.txt : null });
  }
-
+ function carregar() {
+  $('grade').className = 'carrega'; $('grade').innerHTML = '<div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div>';
+  var info = PAISES.filter(function (p) { return p[0] === pais })[0] || PAISES[0];
+  var pedidos = [baixar(FONTE + arquivo(pais), 'tv:m3u:' + pais)];
+  if (info[2]) pedidos.push(baixar(FREETV, 'tv:freetv'));
+  Promise.all(pedidos).then(function (r) {
+   if (!r[0] && !r[1]) { $('grade').className = ''; $('grade').innerHTML = '<p class="vazio">Não foi possível carregar os canais agora. Verifique a internet e <a href="" style="text-decoration:underline">recarregue a página</a>.</p>'; return }
+   var arr = r[0] ? lerM3U(r[0], 'iptv') : [];
+   if (r[1]) { var rx = new RegExp('^(' + info[2] + ')$', 'i'); arr = arr.concat(lerM3U(r[1], 'freetv').filter(function (c) { return rx.test(c.pais.trim()) })) }
+   pronto(arr);
+  });
+ }
+ function chaveNome(n) { return n.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\b(hd|sd|fhd|tv)\b/g, '').replace(/[^a-z0-9]/g, '') }
  function pronto(arr) {
   var vistos = {};
-  todos = arr.filter(function (c) { var k = c.nome.toLowerCase(); if (vistos[k]) return false; vistos[k] = 1; return true });
-  todos.sort(function (a, b) { return (a.geo - b.geo) || (a.nao24 - b.nao24) || a.nome.localeCompare(b.nome, 'pt') });
-  cat = 'Todos'; mostra = PAGINA; chips(); render();
+  todos = [];
+  arr.forEach(function (c) { c.via = vias[c.url] || ''; var k = chaveNome(c.nome); if (vistos[k]) { vistos[k].alt.push(c.url); return } c.alt = []; vistos[k] = c; todos.push(c) });
+  ordenar(); cat = 'Todos'; mostra = PAGINA; chips(); render(); testarTodos();
+ }
+ function peso(c) { var s = status(c); return s === 'ok' ? 0 : s === '' ? 1 : 2 }
+ function ordenar() { todos.sort(function (a, b) { return peso(a) - peso(b) || (a.geo - b.geo) || (a.nao24 - b.nao24) || a.nome.localeCompare(b.nome, 'pt') }) }
+
+ /* ---- teste: confere quais canais estão no ar NESTE aparelho ---- */
+ function testar(c, url) {
+  var ctl = window.AbortController ? new AbortController() : null, t = setTimeout(function () { ctl && ctl.abort() }, TEMPO_TESTE);
+  return fetch(url, ctl ? { signal: ctl.signal } : {}).then(function (r) {
+   if (!r.ok) throw 0;
+   var tp = r.headers.get('content-type') || '';
+   if (/video|octet|mp2t/i.test(tp) && !/mpegurl/i.test(tp)) { ctl && ctl.abort(); return true }
+   return r.text().then(function (x) { return /#EXTM3U|#EXTINF|#EXT-X-/i.test(x.slice(0, 2000)) });
+  }).catch(function () { return false }).then(function (ok) { clearTimeout(t); return ok });
+ }
+ function testarCanal(c) {
+  var urls = [c.url].concat(c.alt || []), i = 0;
+  /* 1º direto (não gasta a ponte); se falhar e houver ponte, tenta por ela */
+  function prox() {
+   if (i >= urls.length) return Promise.resolve(false); var u = urls[i++];
+   var direto = precisaPonte(u) ? Promise.resolve(false) : testar(c, u);
+   return direto.then(function (ok) { if (ok) return 'direto'; return PONTE ? testar(c, viaPonte(u)).then(function (k) { return k ? 'ponte' : '' }) : '' })
+    .then(function (via) { if (via) { if (u !== c.url) { c.alt = urls.filter(function (x) { return x !== u }); c.url = u } c.via = via; vias[u] = via; return true } return prox() });
+  }
+  return prox();
+ }
+ function testarTodos() {
+  var g = ++geracao; fila = todos.filter(function (c) { return !status(c) }); testados = todos.length - fila.length; progresso();
+  for (var k = 0; k < SIMULT; k++) proximoTeste(g);
+ }
+ function proximoTeste(g) {
+  if (g !== geracao) return;
+  var c = fila.shift(); if (!c) { if (!ativos) { ls.set('tv:est', est); ls.set('tv:via', vias); render() } return }
+  ativos++;
+  testarCanal(c).then(function (ok) {
+   ativos--; if (g !== geracao) return;
+   est[c.url] = { s: ok ? 'ok' : 'off', t: Date.now() }; testados++;
+   if (ok) agendarRender(); else { var el = document.querySelector('.card[data-u="' + cssEsc(c.url) + '"]'); if (el && !el.classList.contains('tocando')) el.remove() }
+   if (testados % 10 === 0) { ls.set('tv:est', est); ls.set('tv:via', vias) }
+   progresso(); proximoTeste(g);
+  });
+ }
+ var rt = null; function agendarRender() { if (!rt) rt = setTimeout(function () { rt = null; if (!document.activeElement || !document.activeElement.closest('.card')) render() }, 500) }
+ function cssEsc(s) { return window.CSS && CSS.escape ? CSS.escape(s) : s.replace(/"/g, '\\"') }
+ function progresso() {
+  var ok = todos.filter(function (c) { return status(c) === 'ok' }).length;
+  $('teste').innerHTML = testados < todos.length ? '<span class="pt"></span> Testando canais… ' + testados + ' de ' + todos.length + ' · <b>' + ok + ' no ar</b>' : '✅ <b>' + ok + ' canais funcionando</b> agora neste aparelho';
  }
 
  /* ---- interface ---- */
@@ -217,23 +285,23 @@ footer a{text-decoration:underline}
  function esc(s) { return String(s).replace(/[&<>"]/g, function (x) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[x] }) }
  function card(c) {
   var lg = c.logo ? '<img loading="lazy" src="' + esc(c.logo) + '" alt="" onerror="this.outerHTML=\'<span class=ini>' + esc(c.nome.charAt(0)) + '</span>\'">' : '<span class="ini">' + esc(c.nome.charAt(0)) + '</span>';
-  var cls = 'card' + (falhou[c.url] ? ' off' : '') + (atual && atual.url === c.url ? ' tocando' : '');
-  return '<button class="' + cls + '" data-u="' + esc(c.url) + '"><div class="cx">' + lg + '<span class="vivo vv">AO VIVO</span>' + (c.res >= 720 ? '<span class="hd">HD</span>' : '') + '</div><div class="nm"><b>' + esc(c.nome) + '</b><span class="g">' + esc(nomeCat(c.grupos[0])) + (c.geo ? ' · pode ter bloqueio' : '') + '</span></div></button>';
+  var s = status(c), cls = 'card' + (s === 'off' ? ' off' : s === 'ok' ? ' ok' : '') + (atual && atual.url === c.url ? ' tocando' : '');
+  return '<button class="' + cls + '" data-u="' + esc(c.url) + '"><div class="cx">' + lg + '<span class="vivo vv">AO VIVO</span>' + (c.res >= 720 ? '<span class="hd">HD</span>' : '') + '<span class="pt"></span></div><div class="nm"><b>' + esc(c.nome) + '</b><span class="g">' + esc(nomeCat(c.grupos[0])) + (s === 'off' ? ' · fora do ar' : c.geo ? ' · pode ter bloqueio' : '') + '</span></div></button>';
  }
  function norm(s) { return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '') }
  function render() {
   var t = norm(q);
-  lista = todos.filter(function (c) { return (cat === 'Todos' || c.grupos.indexOf(cat) >= 0) && (!t || norm(c.nome).indexOf(t) >= 0) });
+  lista = todos.filter(function (c) { return (cat === 'Todos' || c.grupos.indexOf(cat) >= 0) && (!t || norm(c.nome).indexOf(t) >= 0) && status(c) === 'ok' });
   var g = $('grade'); g.className = 'grade';
-  g.innerHTML = lista.length ? lista.slice(0, mostra).map(card).join('') : '<p class="vazio">Nenhum canal encontrado.</p>';
+  g.innerHTML = lista.length ? lista.slice(0, mostra).map(card).join('') : '<p class="vazio">' + (todos.length && testados < todos.length ? 'Procurando os canais que estão funcionando agora…' : (t ? 'Nenhum canal encontrado.' : 'Nenhum canal desta lista está funcionando agora. Tente outro país ou toque em Testar de novo.')) + '</p>';
   $('mais').hidden = lista.length <= mostra;
   $('cont').textContent = lista.length + ' canais';
   $('tit').firstChild.textContent = (cat === 'Todos' ? 'Canais ' : nomeCat(cat) + ' ');
-  var pf = todos.filter(function (c) { return fav.indexOf(c.url) >= 0 });
+  var pf = todos.filter(function (c) { return fav.indexOf(c.id) >= 0 && status(c) === 'ok' });
   $('secFav').hidden = !pf.length || !!t; $('lFav').innerHTML = pf.map(card).join('');
-  var pr = rec.map(function (u) { return todos.filter(function (c) { return c.url === u })[0] }).filter(Boolean);
+  var pr = rec.map(function (id) { return todos.filter(function (c) { return c.id === id && status(c) === 'ok' })[0] }).filter(Boolean);
   $('secRec').hidden = !pr.length || !!t; $('lRec').innerHTML = pr.map(card).join('');
- }
+  }
 
  /* ---- player ---- */
  function achar(u) { return todos.filter(function (c) { return c.url === u })[0] }
@@ -242,40 +310,46 @@ footer a{text-decoration:underline}
   $('iNome').textContent = c.nome;
   var lg = $('iLogo'); lg.style.backgroundImage = c.logo ? 'url("' + c.logo + '")' : ''; lg.textContent = c.logo ? '' : c.nome.charAt(0);
   $('iMeta').textContent = c.grupos.map(nomeCat).join(' · ') + (c.res ? ' · ' + c.res + 'p' : '') + (c.nao24 ? ' · não é 24h' : '');
-  $('iFav').classList.toggle('on', fav.indexOf(c.url) >= 0); $('iFav').textContent = fav.indexOf(c.url) >= 0 ? '★ Favorito' : '☆ Favorito';
-  rec = [c.url].concat(rec.filter(function (u) { return u !== c.url })).slice(0, 12); ls.set('tv:rec', rec);
-  var v = $('v'); parar();
+  var f = fav.indexOf(c.id) >= 0; $('iFav').classList.toggle('on', f); $('iFav').textContent = f ? '★ Favorito' : '☆ Favorito';
+  rec = [c.id].concat(rec.filter(function (u) { return u !== c.id })).slice(0, 12); ls.set('tv:rec', rec);
+  var v = $('v'), u = tocavel(c); parar();
   clearTimeout(timer); timer = setTimeout(function () { erro('O canal demorou demais para responder.') }, 15000);
-  if (window.Hls && Hls.isSupported() && /\.m3u8(\?|$)/i.test(c.url)) {
+  if (window.Hls && Hls.isSupported() && (u !== c.url || /\.m3u8?(\?|$)/i.test(c.url))) {
    hls = new Hls({ maxBufferLength: 20, manifestLoadingTimeOut: 12000 });
    hls.on(Hls.Events.ERROR, function (e, d) { if (d.fatal) erro(d.type === 'networkError' ? 'A emissora não respondeu ou bloqueia acesso de fora do país dela.' : 'Formato de vídeo não suportado neste aparelho.') });
-   hls.loadSource(c.url); hls.attachMedia(v);
-  } else v.src = c.url;
+   hls.loadSource(u); hls.attachMedia(v);
+  } else v.src = u;
   var p = v.play(); if (p && p.catch) p.catch(function () {});
   render();
   if (innerWidth < 900 || scrollY > 200) scrollTo({ top: 0, behavior: 'smooth' });
-  try { history.replaceState(null, '', '#' + encodeURIComponent(c.id)) } catch (e) {}
+  try { history.replaceState(null, '', location.pathname + location.search + '#' + encodeURIComponent(c.id)) } catch (e) {}
  }
  function parar() { if (hls) { hls.destroy(); hls = null } var v = $('v'); v.removeAttribute('src'); v.load() }
- function erro(msg) { clearTimeout(timer); if (!atual) return; falhou[atual.url] = 1; $('spin').classList.remove('on'); $('avisoTx').textContent = msg; $('aviso').classList.add('on'); render() }
+ function erro(msg) {
+  clearTimeout(timer); if (!atual) return;
+  if (atual.alt && atual.alt.length) { var c = atual; c.url = c.alt.shift(); return tocar(c) }  /* tenta o link reserva */
+  est[atual.url] = { s: 'off', t: Date.now() }; ls.set('tv:est', est);
+  $('spin').classList.remove('on'); $('avisoTx').textContent = msg; $('aviso').classList.add('on'); render();
+ }
  function proximo() {
   var base = lista.length ? lista : todos, i = atual ? base.indexOf(atual) : -1;
-  for (var k = 1; k <= base.length; k++) { var c = base[(i + k) % base.length]; if (!falhou[c.url]) return tocar(c) }
+  for (var k = 1; k <= base.length; k++) { var c = base[(i + k) % base.length]; if (status(c) === 'ok' && c !== atual) return tocar(c) }
  }
- $('v').addEventListener('playing', function () { clearTimeout(timer); $('spin').classList.remove('on'); $('aviso').classList.remove('on'); if (atual) delete falhou[atual.url] });
+ $('v').addEventListener('playing', function () { clearTimeout(timer); $('spin').classList.remove('on'); $('aviso').classList.remove('on'); if (atual) { est[atual.url] = { s: 'ok', t: Date.now() }; ls.set('tv:est', est) } });
  $('v').addEventListener('waiting', function () { $('spin').classList.add('on') });
  $('v').addEventListener('error', function () { if (!hls) erro('Formato de vídeo não suportado neste aparelho.') });
 
  /* ---- eventos ---- */
  document.addEventListener('click', function (e) {
   var c = e.target.closest('.card'); if (c) { var x = achar(c.dataset.u); if (x) tocar(x); return }
-  var ch = e.target.closest('.chip'); if (ch) { cat = ch.dataset.c; mostra = PAGINA; document.querySelectorAll('.chip').forEach(function (b) { b.classList.toggle('on', b === ch) }); render() }
+  var ch = e.target.closest('.chip[data-c]'); if (ch) { cat = ch.dataset.c; mostra = PAGINA; document.querySelectorAll('.chip[data-c]').forEach(function (b) { b.classList.toggle('on', b === ch) }); render() }
  });
+  $('retestar').onclick = function () { est = {}; ls.set('tv:est', est); ordenar(); render(); testarTodos() };
  $('mais').onclick = function () { mostra += PAGINA; render() };
  $('prox').onclick = proximo; $('iProx').onclick = proximo;
- $('tentar').onclick = function () { if (atual) { delete falhou[atual.url]; tocar(atual) } };
- $('iFechar').onclick = function () { clearTimeout(timer); parar(); atual = null; $('palco').classList.remove('on'); render(); try { history.replaceState(null, '', location.pathname) } catch (e) {} };
- $('iFav').onclick = function () { if (!atual) return; var i = fav.indexOf(atual.url); if (i >= 0) fav.splice(i, 1); else fav.unshift(atual.url); ls.set('tv:fav', fav); tocar(atual) };
+ $('tentar').onclick = function () { if (atual) { delete est[atual.url]; tocar(atual) } };
+ $('iFechar').onclick = function () { clearTimeout(timer); parar(); atual = null; $('palco').classList.remove('on'); render(); try { history.replaceState(null, '', location.pathname + location.search) } catch (e) {} };
+ $('iFav').onclick = function () { if (!atual) return; var i = fav.indexOf(atual.id); if (i >= 0) fav.splice(i, 1); else fav.unshift(atual.id); ls.set('tv:fav', fav); tocar(atual) };
  function busca(e) { q = e.target.value; mostra = PAGINA; $('q').value = $('q2').value = q; render() }
  $('q').oninput = busca; $('q2').oninput = busca;
  var sel = $('pais'); sel.innerHTML = PAISES.map(function (p) { return '<option value="' + p[0] + '">' + p[1] + '</option>' }).join('');
@@ -301,7 +375,6 @@ footer a{text-decoration:underline}
  });
 
  carregar();
- /* abrir canal pelo link (#id) */
  var alvo = decodeURIComponent(location.hash.slice(1));
  if (alvo) { var t = setInterval(function () { if (todos.length) { clearInterval(t); var c = todos.filter(function (x) { return x.id === alvo })[0]; if (c) tocar(c) } }, 300); setTimeout(function () { clearInterval(t) }, 10000) }
 })();
