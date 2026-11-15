@@ -153,7 +153,7 @@ footer a{text-decoration:underline}
   <div class="mlinha"><input id="mUrl" type="url" placeholder="https://… link da sua lista .m3u" autocomplete="off"><button class="bt pri" id="mAbrir">Carregar link</button></div>
   <div class="mlinha"><label class="bt" for="mArq">📄 Escolher arquivo</label><input id="mArq" type="file" accept=".m3u,.m3u8,audio/x-mpegurl,application/vnd.apple.mpegurl,text/plain" hidden><button class="bt" id="mApagar" hidden>🗑️ Remover minha lista</button></div>
   <p class="mmsg" id="mMsg"></p>
-  <p class="mnota">Use somente listas que você tem direito de usar. Links que começam com <code>http://</code> não tocam em sites seguros: para eles, use o app StreamHub.</p>
+  <p class="mnota">Use somente listas que você tem direito de usar. Listas com links <code>http://</code>: no Chrome, toque no ícone ao lado do endereço → <b>Configurações do site</b> → <b>Conteúdo não seguro</b> → <b>Permitir</b>, e recarregue a página. Ou use o app StreamHub.</p>
  </div>
  <div class="chips" id="chips"></div>
 
@@ -192,7 +192,11 @@ footer a{text-decoration:underline}
 
  function precisaPonte(u) { return seguro && /^http:/i.test(u) }
  function viaPonte(u) { return PONTE + '/p?u=' + encodeURIComponent(u) }
- function tocavel(c) { return !minhaModo && PONTE && (c.via === 'ponte' || precisaPonte(c.url)) ? viaPonte(c.url) : c.url }
+ function xtreamHls(u) {
+  var m = u.match(/^(https?:\/\/[^/]+)\/(?:live\/)?([^/]+)\/([^/]+)\/(\d+)(?:\.ts)?(\?.*)?$/i);
+  return m ? m[1] + '/live/' + m[2] + '/' + m[3] + '/' + m[4] + '.m3u8' : u;
+ }
+ function tocavel(c) { if (minhaModo) return xtreamHls(c.url); return PONTE && (c.via === 'ponte' || precisaPonte(c.url)) ? viaPonte(c.url) : c.url }
  function status(c) { var e = est[c.url]; return e && Date.now() - e.t < VALIDADE ? e.s : '' }
 
  /* ---- listas M3U ---- */
@@ -213,7 +217,7 @@ footer a{text-decoration:underline}
   }).filter(function (c) {
    if (c.grupos.some(function (g) { return /xxx|adult|\+18/i.test(g) })) return false;
    if (/youtube\.com|youtu\.be/i.test(c.url)) return false;
-   if (fonte === 'minha') { if (seguro && /^http:/i.test(c.url)) { semHttp++; return false } return true }
+   if (fonte === 'minha') { if (seguro && /^http:/i.test(c.url)) semHttp++; return true }
    return /^https:/i.test(c.url) || !!PONTE || !seguro;
   });
  }
@@ -238,7 +242,7 @@ footer a{text-decoration:underline}
   semHttp = 0;
   var arr = lerM3U(txt, 'minha');
   $('mApagar').hidden = false;
-  msgMinha('✅ Lista carregada' + (origem ? ' (' + origem + ')' : '') + ': ' + arr.length.toLocaleString('pt-BR') + ' itens.' + (semHttp ? ' ' + semHttp.toLocaleString('pt-BR') + ' com link http:// ficaram de fora, porque não tocam em site seguro.' : ''));
+  msgMinha('✅ Lista carregada' + (origem ? ' (' + origem + ')' : '') + ': ' + arr.length.toLocaleString('pt-BR') + ' itens.' + (semHttp ? ' ' + semHttp.toLocaleString('pt-BR') + ' usam http://: se não tocarem, libere "Conteúdo não seguro" para este site no navegador.' : ''));
   pronto(arr);
  }
  function vazioMinha() { todos = []; testados = 0; $('chips').innerHTML = ''; $('teste').textContent = ''; render() }
@@ -390,6 +394,7 @@ footer a{text-decoration:underline}
  function parar() { if (hls) { hls.destroy(); hls = null } var v = $('v'); v.removeAttribute('src'); v.load() }
  function erro(msg) {
   clearTimeout(timer); if (!atual) return;
+  if (minhaModo && seguro && /^http:/i.test(atual.url)) msg = 'Este link usa http://. No Chrome: ícone ao lado do endereço → Configurações do site → Conteúdo não seguro → Permitir. Depois recarregue a página. Se mesmo assim não tocar, o servidor da lista está fora do ar ou bloqueou o acesso.';
   if (atual.alt && atual.alt.length) { var c = atual; c.url = c.alt.shift(); return tocar(c) }  /* tenta o link reserva */
   if (!minhaModo) { est[atual.url] = { s: 'off', t: Date.now() }; ls.set('tv:est', est) }
   $('spin').classList.remove('on'); $('avisoTx').textContent = msg; $('aviso').classList.add('on'); render();
