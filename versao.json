@@ -1,0 +1,14 @@
+{
+ "versao": "3.5",
+ "codigo": 17,
+ "apk": "https://streamhubtv.dpdns.org/StreamHub.apk",
+ "webos": "https://streamhubtv.dpdns.org/StreamHub-LG.ipk",
+ "data": "2026-11-15",
+ "obrigatoria": false,
+ "novidades": [
+  "Muito mais rápido em TV box simples",
+  "Jogos do dia na tela inicial logo ao abrir",
+  "Novo Modo leve para aparelhos de até 1 GB",
+  "Pronto para o Android 16"
+ ]
+}
