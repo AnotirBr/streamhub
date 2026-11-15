@@ -73,6 +73,15 @@ main{max-width:1400px;margin:0 auto;padding:18px 20px 60px}
 .card .pt{position:absolute;bottom:8px;right:8px;width:9px;height:9px;border-radius:50%;background:#555;box-shadow:0 0 0 2px rgba(0,0,0,.4)}
 .card.ok .pt{background:#22c55e}
 .card.off .pt{background:#ef4444}
+.minha{background:var(--p1);border:1px solid var(--line);border-radius:16px;padding:18px 20px;margin:8px 0 6px;display:flex;flex-direction:column;gap:10px;max-width:760px}
+.minha[hidden],.mais[hidden]{display:none}
+.minha p{color:#bbb;font-size:14px}
+.minha .mlinha{display:flex;gap:8px;flex-wrap:wrap}
+.minha input[type=url]{flex:1;min-width:220px;background:#0f0f0f;border:1px solid #2a2a2a;border-radius:10px;padding:10px 12px;color:#fff;font:inherit}
+.minha .mmsg{color:#fff}
+.minha .mmsg.erro{color:#ff8080}
+.minha .mnota{font-size:12.5px;color:#777}
+.minha code{background:#222;padding:0 5px;border-radius:4px}
 .chip small{opacity:.6;margin-left:4px}
 
 h3{font-size:20px;margin:18px 0 12px;display:flex;align-items:center;gap:10px}
@@ -138,6 +147,14 @@ footer a{text-decoration:underline}
   <button class="chip" id="retestar">↻ Testar de novo</button>
  </div>
  <p class="teste" id="teste"></p>
+ <div class="minha" id="minha" hidden>
+  <b>📂 Use a sua própria lista M3U</b>
+  <p>Cole o link da sua lista ou escolha o arquivo <code>.m3u</code> / <code>.m3u8</code> do aparelho. A lista fica guardada <b>só neste navegador</b>: o StreamHub não recebe, não vê e não guarda nada.</p>
+  <div class="mlinha"><input id="mUrl" type="url" placeholder="https://… link da sua lista .m3u" autocomplete="off"><button class="bt pri" id="mAbrir">Carregar link</button></div>
+  <div class="mlinha"><label class="bt" for="mArq">📄 Escolher arquivo</label><input id="mArq" type="file" accept=".m3u,.m3u8,audio/x-mpegurl,application/vnd.apple.mpegurl,text/plain" hidden><button class="bt" id="mApagar" hidden>🗑️ Remover minha lista</button></div>
+  <p class="mmsg" id="mMsg"></p>
+  <p class="mnota">Use somente listas que você tem direito de usar. Links que começam com <code>http://</code> não tocam em sites seguros: para eles, use o app StreamHub.</p>
+ </div>
  <div class="chips" id="chips"></div>
 
  <div id="secFav" hidden><h3>⭐ Seus favoritos</h3><div class="linha" id="lFav"></div></div>
@@ -162,7 +179,7 @@ footer a{text-decoration:underline}
  var FREETV = qs.get('freetv') || 'https://raw.githubusercontent.com/Free-TV/IPTV/master/playlist.m3u8';
  /* endereço do Worker "ponte" no Cloudflare (opcional) */
  var PONTE = (qs.get('ponte') || '__PONTE__').replace(/\/$/, ''); if (PONTE.indexOf('__') === 0) PONTE = '';
- var PAISES = [['br','🇧🇷 Brasil','Brazil|Brasil'],['pt','🇵🇹 Portugal','Portugal'],['ar','🇦🇷 Argentina','Argentina'],['mx','🇲🇽 México','Mexico|México'],['es','🇪🇸 Espanha','Spain|España'],['us','🇺🇸 Estados Unidos','USA|United States'],['it','🇮🇹 Itália','Italy|Italia'],['fr','🇫🇷 França','France'],['gb','🇬🇧 Reino Unido','UK|United Kingdom'],['de','🇩🇪 Alemanha','Germany|Deutschland'],['jp','🇯🇵 Japão','Japan'],['cl','🇨🇱 Chile','Chile'],['pe','🇵🇪 Peru','Peru|Perú'],['cat:news','📰 Notícias do mundo'],['cat:music','🎵 Música do mundo'],['cat:kids','🧸 Infantil do mundo'],['cat:sports','⚽ Esportes abertos'],['cat:movies','🎬 Filmes abertos']];
+ var PAISES = [['minha','📂 Minha lista'],['br','🇧🇷 Brasil','Brazil|Brasil'],['pt','🇵🇹 Portugal','Portugal'],['ar','🇦🇷 Argentina','Argentina'],['mx','🇲🇽 México','Mexico|México'],['es','🇪🇸 Espanha','Spain|España'],['us','🇺🇸 Estados Unidos','USA|United States'],['it','🇮🇹 Itália','Italy|Italia'],['fr','🇫🇷 França','France'],['gb','🇬🇧 Reino Unido','UK|United Kingdom'],['de','🇩🇪 Alemanha','Germany|Deutschland'],['jp','🇯🇵 Japão','Japan'],['cl','🇨🇱 Chile','Chile'],['pe','🇵🇪 Peru','Peru|Perú'],['cat:news','📰 Notícias do mundo'],['cat:music','🎵 Música do mundo'],['cat:kids','🧸 Infantil do mundo'],['cat:sports','⚽ Esportes abertos'],['cat:movies','🎬 Filmes abertos']];
  var CAT = { General: 'Variedades', News: 'Notícias', Religious: 'Religiosos', Music: 'Música', Kids: 'Infantil', Sports: 'Esportes', Education: 'Educativos', Entertainment: 'Entretenimento', Movies: 'Filmes', Series: 'Séries', Documentary: 'Documentários', Culture: 'Cultura', Legislative: 'Legislativos', Business: 'Economia', Lifestyle: 'Estilo de vida', Comedy: 'Comédia', Cooking: 'Culinária', Travel: 'Viagem', Outdoor: 'Natureza', Animation: 'Animação', Classic: 'Clássicos', Family: 'Família', Science: 'Ciência', Shop: 'Compras', Weather: 'Tempo', Auto: 'Carros', Relax: 'Relax', Undefined: 'Outros' };
  var PAGINA = 60, SIMULT = 8, TEMPO_TESTE = 8000, VALIDADE = 30 * 60e3;
  var $ = function (id) { return document.getElementById(id) };
@@ -171,11 +188,11 @@ footer a{text-decoration:underline}
  var todos = [], lista = [], cat = 'Todos', q = '', mostra = PAGINA, atual = null, hls = null, timer = null;
  var fav = ls.get('tv:fav', []), rec = ls.get('tv:rec', []), pais = ls.get('tv:pais', 'br');
  var vias = ls.get('tv:via', {}), est = ls.get('tv:est', {}), geracao = 0, fila = [], ativos = 0, testados = 0;
- var seguro = location.protocol === 'https:';
+ var seguro = location.protocol === 'https:', minhaModo = false, semHttp = 0;
 
  function precisaPonte(u) { return seguro && /^http:/i.test(u) }
  function viaPonte(u) { return PONTE + '/p?u=' + encodeURIComponent(u) }
- function tocavel(c) { return PONTE && (c.via === 'ponte' || precisaPonte(c.url)) ? viaPonte(c.url) : c.url }
+ function tocavel(c) { return !minhaModo && PONTE && (c.via === 'ponte' || precisaPonte(c.url)) ? viaPonte(c.url) : c.url }
  function status(c) { var e = est[c.url]; return e && Date.now() - e.t < VALIDADE ? e.s : '' }
 
  /* ---- listas M3U ---- */
@@ -194,8 +211,9 @@ footer a{text-decoration:underline}
    var grupos = fonte === 'freetv' ? ['General'] : c.grupo.split(';').map(function (g) { return g.trim() }).filter(Boolean);
    return { id: c.id || n, nome: n, logo: /^https:/.test(c.logo) ? c.logo : '', grupos: grupos.length ? grupos : ['Undefined'], url: c.url, res: res ? +res : (fonte === 'freetv' && !sd ? 720 : 0), geo: geo, nao24: nao24, pais: c.grupo };
   }).filter(function (c) {
-   if (c.grupos.some(function (g) { return /xxx|adult/i.test(g) })) return false;
+   if (c.grupos.some(function (g) { return /xxx|adult|\+18/i.test(g) })) return false;
    if (/youtube\.com|youtu\.be/i.test(c.url)) return false;
+   if (fonte === 'minha') { if (seguro && /^http:/i.test(c.url)) { semHttp++; return false } return true }
    return /^https:/i.test(c.url) || !!PONTE || !seguro;
   });
  }
@@ -207,7 +225,48 @@ footer a{text-decoration:underline}
    .then(function (txt) { try { ls.set(chave, { t: Date.now(), txt: txt }) } catch (e) {} return txt })
    .catch(function () { return c ? c.txt : null });
  }
+ /* ---- Minha lista (fica só neste navegador, em IndexedDB) ---- */
+ var IDB = {
+  db: function () { return new Promise(function (ok, no) { var r = indexedDB.open('tv-minha', 1); r.onupgradeneeded = function () { r.result.createObjectStore('l') }; r.onsuccess = function () { ok(r.result) }; r.onerror = no }) },
+  get: function (k) { return IDB.db().then(function (d) { return new Promise(function (ok) { var q = d.transaction('l').objectStore('l').get(k); q.onsuccess = function () { ok(q.result) }; q.onerror = function () { ok(null) } }) }).catch(function () { return null }) },
+  set: function (k, v) { return IDB.db().then(function (d) { return new Promise(function (ok) { var t = d.transaction('l', 'readwrite'); t.objectStore('l').put(v, k); t.oncomplete = ok; t.onerror = ok }) }).catch(function () {}) },
+  del: function (k) { return IDB.db().then(function (d) { return new Promise(function (ok) { var t = d.transaction('l', 'readwrite'); t.objectStore('l').delete(k); t.oncomplete = ok }) }).catch(function () {}) }
+ };
+ function msgMinha(t, erro) { var m = $('mMsg'); m.textContent = t; m.className = 'mmsg' + (erro ? ' erro' : '') }
+ function usarMinha(txt, origem) {
+  if (!/#EXTINF/i.test(txt || '')) { msgMinha('Esse conteúdo não parece uma lista M3U. Confira o link ou o arquivo.', true); vazioMinha(); return }
+  semHttp = 0;
+  var arr = lerM3U(txt, 'minha');
+  $('mApagar').hidden = false;
+  msgMinha('✅ Lista carregada' + (origem ? ' (' + origem + ')' : '') + ': ' + arr.length.toLocaleString('pt-BR') + ' itens.' + (semHttp ? ' ' + semHttp.toLocaleString('pt-BR') + ' com link http:// ficaram de fora, porque não tocam em site seguro.' : ''));
+  pronto(arr);
+ }
+ function vazioMinha() { todos = []; testados = 0; $('chips').innerHTML = ''; $('teste').textContent = ''; render() }
+ function carregarMinha() {
+  $('minha').hidden = false;
+  IDB.get('lista').then(function (v) {
+   if (v && v.txt) { $('mUrl').value = v.url || ''; usarMinha(v.txt, v.url ? 'link' : 'arquivo') }
+   else { $('mApagar').hidden = true; msgMinha('Nenhuma lista carregada ainda.'); vazioMinha() }
+  });
+ }
+ $('mAbrir').onclick = function () {
+  var u = $('mUrl').value.trim(); if (!/^https?:\/\//i.test(u)) return msgMinha('Cole um link que comece com https://', true);
+  msgMinha('Baixando a lista…');
+  fetch(u).then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.text() })
+   .then(function (txt) { IDB.set('lista', { url: u, txt: txt, t: Date.now() }); usarMinha(txt, 'link') })
+   .catch(function () { msgMinha('Não deu para abrir esse link aqui no navegador. Muitos servidores bloqueiam sites (ou usam http://). Baixe o arquivo da lista e use "Escolher arquivo".', true) });
+ };
+ $('mArq').onchange = function () {
+  var f = this.files && this.files[0]; if (!f) return;
+  msgMinha('Lendo o arquivo…');
+  f.text().then(function (txt) { IDB.set('lista', { url: '', txt: txt, t: Date.now() }); usarMinha(txt, f.name) });
+  this.value = '';
+ };
+ $('mApagar').onclick = function () { IDB.del('lista'); $('mUrl').value = ''; $('mApagar').hidden = true; msgMinha('Lista removida deste navegador.'); vazioMinha() };
+
  function carregar() {
+  minhaModo = pais === 'minha'; $('minha').hidden = !minhaModo; $('retestar').hidden = minhaModo; geracao++;
+  if (minhaModo) return carregarMinha();
   $('grade').className = 'carrega'; $('grade').innerHTML = '<div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div>';
   var info = PAISES.filter(function (p) { return p[0] === pais })[0] || PAISES[0];
   var pedidos = [baixar(FONTE + arquivo(pais), 'tv:m3u:' + pais)];
@@ -223,6 +282,7 @@ footer a{text-decoration:underline}
  function pronto(arr) {
   var vistos = {};
   todos = [];
+  if (minhaModo) { todos = arr.map(function (c, i) { c.alt = []; c.ordem = i; return c }); testados = todos.length; cat = 'Todos'; mostra = PAGINA; chips(); render(); $('teste').textContent = ''; return }
   arr.forEach(function (c) { c.via = vias[c.url] || ''; var k = chaveNome(c.nome); if (vistos[k]) { vistos[k].alt.push(c.url); return } c.alt = []; vistos[k] = c; todos.push(c) });
   ordenar(); cat = 'Todos'; mostra = PAGINA; chips(); render(); testarTodos();
  }
@@ -276,11 +336,14 @@ footer a{text-decoration:underline}
  /* ---- interface ---- */
  function nomeCat(g) { return CAT[g] || g }
  function chips() {
-  var n = {}; todos.forEach(function (c) { c.grupos.forEach(function (g) { n[g] = (n[g] || 0) + 1 }) });
+  /* conta só os canais que aparecem (funcionando, ou todos na Minha lista) */
+  var n = {}, tot = 0; todos.forEach(function (c) { if (!minhaModo && status(c) !== 'ok') return; tot++; c.grupos.forEach(function (g) { n[g] = (n[g] || 0) + 1 }) });
   var gs = Object.keys(n).sort(function (a, b) { return n[b] - n[a] });
-  var h = '<button class="chip on" data-c="Todos">Todos<small>' + todos.length + '</small></button>';
-  gs.forEach(function (g) { h += '<button class="chip" data-c="' + esc(g) + '">' + esc(nomeCat(g)) + '<small>' + n[g] + '</small></button>' });
-  $('chips').innerHTML = h;
+  if (cat !== 'Todos' && !n[cat]) cat = 'Todos';
+  var h = '<button class="chip' + (cat === 'Todos' ? ' on' : '') + '" data-c="Todos">Todos<small>' + tot + '</small></button>';
+  gs.forEach(function (g) { h += '<button class="chip' + (cat === g ? ' on' : '') + '" data-c="' + esc(g) + '">' + esc(nomeCat(g)) + '<small>' + n[g] + '</small></button>' });
+  var ch = $('chips'), foco = document.activeElement && document.activeElement.closest('#chips');
+  if (ch.innerHTML !== h && !foco) ch.innerHTML = h;
  }
  function esc(s) { return String(s).replace(/[&<>"]/g, function (x) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[x] }) }
  function card(c) {
@@ -290,16 +353,16 @@ footer a{text-decoration:underline}
  }
  function norm(s) { return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '') }
  function render() {
-  var t = norm(q);
-  lista = todos.filter(function (c) { return (cat === 'Todos' || c.grupos.indexOf(cat) >= 0) && (!t || norm(c.nome).indexOf(t) >= 0) && status(c) === 'ok' });
+  chips(); var t = norm(q);
+  lista = todos.filter(function (c) { return (cat === 'Todos' || c.grupos.indexOf(cat) >= 0) && (!t || norm(c.nome).indexOf(t) >= 0) && (minhaModo || status(c) === 'ok') });
   var g = $('grade'); g.className = 'grade';
-  g.innerHTML = lista.length ? lista.slice(0, mostra).map(card).join('') : '<p class="vazio">' + (todos.length && testados < todos.length ? 'Procurando os canais que estão funcionando agora…' : (t ? 'Nenhum canal encontrado.' : 'Nenhum canal desta lista está funcionando agora. Tente outro país ou toque em Testar de novo.')) + '</p>';
+  g.innerHTML = lista.length ? lista.slice(0, mostra).map(card).join('') : '<p class="vazio">' + (minhaModo ? (todos.length ? 'Nenhum item encontrado.' : 'Carregue a sua lista acima para ver os canais aqui.') : '') + (minhaModo ? '' : (todos.length && testados < todos.length ? 'Procurando os canais que estão funcionando agora…' : (t ? 'Nenhum canal encontrado.' : 'Nenhum canal desta lista está funcionando agora. Tente outro país ou toque em Testar de novo.'))) + '</p>';
   $('mais').hidden = lista.length <= mostra;
   $('cont').textContent = lista.length + ' canais';
   $('tit').firstChild.textContent = (cat === 'Todos' ? 'Canais ' : nomeCat(cat) + ' ');
-  var pf = todos.filter(function (c) { return fav.indexOf(c.id) >= 0 && status(c) === 'ok' });
+  var pf = todos.filter(function (c) { return fav.indexOf(c.id) >= 0 && (minhaModo || status(c) === 'ok') });
   $('secFav').hidden = !pf.length || !!t; $('lFav').innerHTML = pf.map(card).join('');
-  var pr = rec.map(function (id) { return todos.filter(function (c) { return c.id === id && status(c) === 'ok' })[0] }).filter(Boolean);
+  var pr = rec.map(function (id) { return todos.filter(function (c) { return c.id === id && (minhaModo || status(c) === 'ok') })[0] }).filter(Boolean);
   $('secRec').hidden = !pr.length || !!t; $('lRec').innerHTML = pr.map(card).join('');
   }
 
@@ -328,12 +391,12 @@ footer a{text-decoration:underline}
  function erro(msg) {
   clearTimeout(timer); if (!atual) return;
   if (atual.alt && atual.alt.length) { var c = atual; c.url = c.alt.shift(); return tocar(c) }  /* tenta o link reserva */
-  est[atual.url] = { s: 'off', t: Date.now() }; ls.set('tv:est', est);
+  if (!minhaModo) { est[atual.url] = { s: 'off', t: Date.now() }; ls.set('tv:est', est) }
   $('spin').classList.remove('on'); $('avisoTx').textContent = msg; $('aviso').classList.add('on'); render();
  }
  function proximo() {
   var base = lista.length ? lista : todos, i = atual ? base.indexOf(atual) : -1;
-  for (var k = 1; k <= base.length; k++) { var c = base[(i + k) % base.length]; if (status(c) === 'ok' && c !== atual) return tocar(c) }
+  for (var k = 1; k <= base.length; k++) { var c = base[(i + k) % base.length]; if ((minhaModo || status(c) === 'ok') && c !== atual) return tocar(c) }
  }
  $('v').addEventListener('playing', function () { clearTimeout(timer); $('spin').classList.remove('on'); $('aviso').classList.remove('on'); if (atual) { est[atual.url] = { s: 'ok', t: Date.now() }; ls.set('tv:est', est) } });
  $('v').addEventListener('waiting', function () { $('spin').classList.add('on') });
@@ -344,7 +407,7 @@ footer a{text-decoration:underline}
   var c = e.target.closest('.card'); if (c) { var x = achar(c.dataset.u); if (x) tocar(x); return }
   var ch = e.target.closest('.chip[data-c]'); if (ch) { cat = ch.dataset.c; mostra = PAGINA; document.querySelectorAll('.chip[data-c]').forEach(function (b) { b.classList.toggle('on', b === ch) }); render() }
  });
-  $('retestar').onclick = function () { est = {}; ls.set('tv:est', est); ordenar(); render(); testarTodos() };
+  $('retestar').onclick = function () { if (minhaModo) return; est = {}; ls.set('tv:est', est); ordenar(); render(); testarTodos() };
  $('mais').onclick = function () { mostra += PAGINA; render() };
  $('prox').onclick = proximo; $('iProx').onclick = proximo;
  $('tentar').onclick = function () { if (atual) { delete est[atual.url]; tocar(atual) } };
