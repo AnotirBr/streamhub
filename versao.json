@@ -1,14 +1,15 @@
 {
- "versao": "3.5",
- "codigo": 17,
+ "versao": "3.6",
+ "codigo": 18,
  "apk": "https://streamhubtv.dpdns.org/StreamHub.apk",
  "webos": "https://streamhubtv.dpdns.org/StreamHub-LG.ipk",
  "data": "2026-11-15",
  "obrigatoria": false,
  "novidades": [
+  "Ativar a TV pelo celular com MAC e chave",
   "Muito mais rápido em TV box simples",
-  "Jogos do dia na tela inicial logo ao abrir",
-  "Novo Modo leve para aparelhos de até 1 GB",
+  "Jogos do dia na tela inicial",
+  "Modo leve automático",
   "Pronto para o Android 16"
  ]
 }
